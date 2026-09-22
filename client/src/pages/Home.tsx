@@ -8,6 +8,7 @@ import {
   Compass,
   Flame,
   LockKeyhole,
+  ExternalLink,
   RotateCcw,
   Sparkles,
   Trophy,
@@ -53,6 +54,33 @@ const stages: Stage[] = [
 ];
 
 const STORAGE_KEY = "ruta-biblica-progress-v1";
+
+const readingRefs: Record<number, string> = {
+  1: "Genesis 1-11",
+  2: "Genesis 12-50",
+  3: "Exodus",
+  4: "Leviticus",
+  5: "Numbers",
+  6: "Deuteronomy",
+  7: "Joshua",
+  8: "Judges; Ruth",
+  9: "1 Samuel; 2 Samuel",
+  10: "1 Kings; 2 Kings; 1 Chronicles; 2 Chronicles",
+  11: "Isaiah; Jeremiah; Ezekiel; Daniel; Hosea; Joel; Amos; Obadiah; Jonah; Micah; Nahum; Habakkuk; Zephaniah; Haggai; Zechariah; Malachi",
+  12: "2 Kings 24-25; Lamentations",
+  13: "Ezra; Nehemiah; Esther",
+  14: "Job; Psalms; Proverbs; Ecclesiastes; Song of Solomon",
+  15: "Matthew; Mark; Luke; John",
+  16: "Acts",
+  17: "Romans; 1 Corinthians; 2 Corinthians; Galatians; Ephesians; Philippians; Colossians; 1 Thessalonians; 2 Thessalonians",
+  18: "1 Timothy; 2 Timothy; Titus",
+  19: "Philemon; Hebrews; James; 1 Peter; 2 Peter; 1 John; 2 John; 3 John; Jude",
+  20: "Revelation",
+};
+
+function getReadingUrl(stageId: number) {
+  return `https://www.biblegateway.com/passage/?search=${encodeURIComponent(readingRefs[stageId])}&version=RVR1960`;
+}
 
 export default function Home() {
   const [completed, setCompleted] = useState<number[]>([]);
@@ -138,14 +166,14 @@ export default function Home() {
                 <span className="min-w-0 flex-1"><span className="mb-1 flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-[#a26745] uppercase">{stage.number} <span className="h-px w-5 bg-[#cdbba8]" /> {stage.testament === "Nuevo Testamento" ? "Nuevo" : "Antiguo"}</span><strong className="block font-display text-2xl leading-tight">{stage.title}</strong><span className="mt-1 block text-sm text-[#87796b]">{stage.books}</span></span>
                 <span className="mt-2 flex shrink-0 items-center gap-2">{isDone && <span className="grid size-6 place-items-center rounded-full bg-[#6f805b] text-white"><Check size={14} /></span>}<ChevronDown size={18} className={cn("text-[#9a8b7b] transition-transform", isOpen && "rotate-180")} /></span>
               </button>
-              {isOpen && <div className="border-t border-[#e6ddd2] px-5 pb-6 pt-5 sm:px-6"><p className="max-w-xl text-sm leading-6 text-[#62584f]">{stage.summary}</p><div className="mt-4 rounded-xl border-l-2 border-[#c68f61] bg-[#f4eee5] px-4 py-3 text-sm leading-6 text-[#65574b]"><span className="font-bold text-[#a26745]">Enfoque · </span>{stage.focus}</div><div className="mt-6 rounded-2xl bg-[#25211d] p-5 text-[#f8f2e7]"><div className="mb-4 flex items-center gap-2 text-xs font-bold tracking-[0.12em] text-[#e8b97d] uppercase"><CircleHelp size={16} /> Mini quiz</div><p className="mb-4 font-display text-xl leading-tight">{stage.quiz.question}</p><div className="grid gap-2 sm:grid-cols-2">{stage.quiz.options.map((option, optionIndex) => <button key={option} onClick={() => setAnswers((current) => ({ ...current, [stage.id]: optionIndex }))} className={cn("rounded-xl border px-3 py-3 text-left text-sm transition", !quizAnswered && "border-white/10 bg-white/5 hover:border-[#d8a66a]/70 hover:bg-white/10", quizAnswered && optionIndex === stage.quiz.answer && "border-[#91a978] bg-[#91a978]/20 text-[#dbe8d1]", quizAnswered && optionIndex === answer && optionIndex !== stage.quiz.answer && "border-[#d88968] bg-[#d88968]/20 text-[#ffd9ca]", quizAnswered && optionIndex !== stage.quiz.answer && optionIndex !== answer && "border-white/5 bg-white/[0.02] text-white/40")}>{option}</button>)}</div>{quizAnswered && <p className={cn("mt-4 flex items-center gap-2 text-sm", quizCorrect ? "text-[#b8d6a5]" : "text-[#f1b09a]")}>{quizCorrect ? <><Trophy size={15} /> ¡Exacto! Tu comprensión va tomando forma.</> : <>Casi. Revisa el enfoque de esta etapa e inténtalo otra vez.</>}</p>}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><button onClick={() => toggleComplete(stage.id)} className={cn("flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition", isDone ? "bg-[#dce7d5] text-[#526443]" : "bg-[#a26745] text-white hover:bg-[#874e31]")}>{isDone ? <><Check size={16} /> Estudio completado</> : <><BookOpen size={16} /> Marcar como leído</>}</button><button onClick={() => setOpenStage(stage.id + 1 <= stages.length ? stage.id + 1 : 1)} className="flex items-center gap-2 text-sm font-semibold text-[#80624d] hover:text-[#a26745]">Siguiente etapa <ArrowRight size={16} /></button></div></div>}
+              {isOpen && <div className="border-t border-[#e6ddd2] px-5 pb-6 pt-5 sm:px-6"><p className="max-w-xl text-sm leading-6 text-[#62584f]">{stage.summary}</p><div className="mt-4 rounded-xl border-l-2 border-[#c68f61] bg-[#f4eee5] px-4 py-3 text-sm leading-6 text-[#65574b]"><span className="font-bold text-[#a26745]">Enfoque · </span>{stage.focus}</div><a href={getReadingUrl(stage.id)} target="_blank" rel="noreferrer" className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-[#d9c5ae] bg-[#fffaf2] px-4 py-3 text-sm font-bold text-[#805438] transition hover:border-[#a26745] hover:bg-[#f9eee1]"><span className="flex items-center gap-3"><BookOpen size={18} /> Leer en RVR 1960</span><ExternalLink size={16} /></a><p className="mt-2 text-[11px] text-[#948577]">Se abrirá el pasaje en un lector bíblico externo.</p><div className="mt-6 rounded-2xl bg-[#25211d] p-5 text-[#f8f2e7]"><div className="mb-4 flex items-center gap-2 text-xs font-bold tracking-[0.12em] text-[#e8b97d] uppercase"><CircleHelp size={16} /> Mini quiz</div><p className="mb-4 font-display text-xl leading-tight">{stage.quiz.question}</p><div className="grid gap-2 sm:grid-cols-2">{stage.quiz.options.map((option, optionIndex) => <button key={option} onClick={() => setAnswers((current) => ({ ...current, [stage.id]: optionIndex }))} className={cn("rounded-xl border px-3 py-3 text-left text-sm transition", !quizAnswered && "border-white/10 bg-white/5 hover:border-[#d8a66a]/70 hover:bg-white/10", quizAnswered && optionIndex === stage.quiz.answer && "border-[#91a978] bg-[#91a978]/20 text-[#dbe8d1]", quizAnswered && optionIndex === answer && optionIndex !== stage.quiz.answer && "border-[#d88968] bg-[#d88968]/20 text-[#ffd9ca]", quizAnswered && optionIndex !== answer && optionIndex !== answer && "border-white/5 bg-white/[0.02] text-white/40")}>{option}</button>)}</div>{quizAnswered && <p className={cn("mt-4 flex items-center gap-2 text-sm", quizCorrect ? "text-[#b8d6a5]" : "text-[#f1b09a]")}>{quizCorrect ? <><Trophy size={15} /> ¡Exacto! Tu comprensión va tomando forma.</> : <>Casi. Revisa el enfoque de esta etapa e inténtalo otra vez.</>}</p>}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><button onClick={() => toggleComplete(stage.id)} className={cn("flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition", isDone ? "bg-[#dce7d5] text-[#526443]" : "bg-[#a26745] text-white hover:bg-[#874e31]")}>{isDone ? <><Check size={16} /> Estudio completado</> : <><BookOpen size={16} /> Marcar como leído</>}</button><button onClick={() => setOpenStage(stage.id + 1 <= stages.length ? stage.id + 1 : 1)} className="flex items-center gap-2 text-sm font-semibold text-[#80624d] hover:text-[#a26745]">Siguiente etapa <ArrowRight size={16} /></button></div></div>}
             </article>;
           })}
         </div>
 
         <section className="relative mt-16 overflow-hidden rounded-[2rem] bg-[#dfc29e] p-7 sm:p-10"><div className="absolute -right-10 -top-16 size-64 rounded-full border-[24px] border-[#c29462]/25" /><div className="relative max-w-2xl"><div className="mb-4 flex items-center gap-2 text-xs font-bold tracking-[0.18em] text-[#735035] uppercase"><Flame size={16} /> Una ruta, una historia</div><h3 className="font-display text-3xl leading-tight tracking-[-0.02em] sm:text-4xl">No se trata de terminar rápido.<br />Se trata de entender mejor.</h3><p className="mt-4 max-w-xl leading-7 text-[#634d3b]">Cada etapa conecta con la siguiente. Lee con calma, responde el quiz y vuelve cuando quieras: tu avance queda guardado en este navegador.</p><div className="mt-6 flex items-center gap-2 text-sm font-semibold text-[#735035]"><LockKeyhole size={15} /> Progreso privado en tu dispositivo</div></div></section>
       </main>
-      <footer className="border-t border-[#d7cabb] px-5 py-8 text-center text-xs text-[#948577]">Ruta Bíblica · Primera versión interactiva · Hecha para aprender a tu ritmo</footer>
+      <footer className="border-t border-[#d7cabb] px-5 py-8 text-center text-xs text-[#948577]">A tu ritmo · By SARL° · Ruta Bíblica</footer>
     </div>
   );
 }
