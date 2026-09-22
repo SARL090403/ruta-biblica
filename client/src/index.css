@@ -45,6 +45,15 @@
 .accent-sand { background: #eee2c4; }
 .accent-ink { background: #dedce5; }
 
+.bible-copy {
+  color: #4f453d;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.05rem;
+  line-height: 1.9;
+}
+.bible-copy p { margin: 0 0 .8rem; }
+.bible-copy sup { color: #a26745; font-family: 'DM Sans', sans-serif; font-size: .68em; font-weight: 700; margin-right: .18rem; }
+
 @keyframes rise {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }

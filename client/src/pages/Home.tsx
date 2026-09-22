@@ -30,6 +30,16 @@ type Stage = {
   quiz: { question: string; options: string[]; answer: number };
 };
 
+type BibleBook = { id: number; name: string; short: string };
+
+const bibleBooks: BibleBook[] = [
+  ["Génesis", "Gn"], ["Éxodo", "Ex"], ["Levítico", "Lv"], ["Números", "Nm"], ["Deuteronomio", "Dt"], ["Josué", "Jos"], ["Jueces", "Jue"], ["Rut", "Rt"], ["1 Samuel", "1 S"], ["2 Samuel", "2 S"], ["1 Reyes", "1 R"], ["2 Reyes", "2 R"], ["1 Crónicas", "1 Cr"], ["2 Crónicas", "2 Cr"], ["Esdras", "Esd"], ["Nehemías", "Neh"], ["Ester", "Est"], ["Job", "Job"], ["Salmos", "Sal"], ["Proverbios", "Pr"], ["Eclesiastés", "Ec"], ["Cantares", "Cnt"], ["Isaías", "Is"], ["Jeremías", "Jer"], ["Lamentaciones", "Lm"], ["Ezequiel", "Ez"], ["Daniel", "Dn"], ["Oseas", "Os"], ["Joel", "Jl"], ["Amós", "Am"], ["Abdías", "Abd"], ["Jonás", "Jon"], ["Miqueas", "Mi"], ["Nahúm", "Nah"], ["Habacuc", "Hab"], ["Sofonías", "Sof"], ["Hageo", "Hag"], ["Zacarías", "Zac"], ["Malaquías", "Mal"], ["Mateo", "Mt"], ["Marcos", "Mr"], ["Lucas", "Lc"], ["Juan", "Jn"], ["Hechos", "Hch"], ["Romanos", "Ro"], ["1 Corintios", "1 Co"], ["2 Corintios", "2 Co"], ["Gálatas", "Ga"], ["Efesios", "Ef"], ["Filipenses", "Fil"], ["Colosenses", "Col"], ["1 Tesalonicenses", "1 Ts"], ["2 Tesalonicenses", "2 Ts"], ["1 Timoteo", "1 Ti"], ["2 Timoteo", "2 Ti"], ["Tito", "Tit"], ["Filemón", "Flm"], ["Hebreos", "He"], ["Santiago", "Stg"], ["1 Pedro", "1 P"], ["2 Pedro", "2 P"], ["1 Juan", "1 Jn"], ["2 Juan", "2 Jn"], ["3 Juan", "3 Jn"], ["Judas", "Jud"], ["Apocalipsis", "Ap"],
+].map(([name, short], index) => ({ id: index + 1, name, short }));
+
+const stageBookRanges: Record<number, number[]> = {
+  1: [1], 2: [1], 3: [2], 4: [3], 5: [4], 6: [5], 7: [6], 8: [7, 8], 9: [9, 10], 10: [11, 12, 13, 14], 11: [23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], 12: [12, 25], 13: [15, 16, 17], 14: [18, 19, 20, 21, 22], 15: [40, 41, 42, 43], 16: [44], 17: [45, 46, 47, 48, 49, 50, 51, 52], 18: [53, 54, 55], 19: [56, 58, 59, 60, 61, 62, 63, 64, 65], 20: [66],
+};
+
 const stages: Stage[] = [
   { id: 1, number: "01", testament: "Antiguo Testamento", icon: "🌎", title: "Los comienzos", books: "Génesis 1–11", summary: "Creación, humanidad, pecado, diluvio y dispersión de las naciones.", focus: "El origen del mundo, del ser humano y de la necesidad de redención.", accent: "clay", quiz: { question: "¿Qué entra en la historia humana en Génesis 3?", options: ["La monarquía", "El pecado", "El templo", "El exilio"], answer: 1 } },
   { id: 2, number: "02", testament: "Antiguo Testamento", icon: "👨‍👩‍👦", title: "Los patriarcas", books: "Génesis 12–50", summary: "Abraham, Isaac, Jacob y José: la familia que se convierte en pueblo.", focus: "Dios establece su pacto y comienza la historia de Israel.", accent: "olive", quiz: { question: "¿Con quién establece Dios el pacto que inicia esta etapa?", options: ["Moisés", "David", "Abraham", "Josué"], answer: 2 } },
@@ -87,6 +97,12 @@ export default function Home() {
   const [openStage, setOpenStage] = useState(1);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [filter, setFilter] = useState<"all" | "Antiguo Testamento" | "Nuevo Testamento">("all");
+  const [readerStage, setReaderStage] = useState<number | null>(null);
+  const [readerBook, setReaderBook] = useState(1);
+  const [readerChapter, setReaderChapter] = useState(1);
+  const [chapterVerses, setChapterVerses] = useState<{ title: string; content: string }[]>([]);
+  const [readerLoading, setReaderLoading] = useState(false);
+  const [bookChapterCount, setBookChapterCount] = useState(1);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -96,6 +112,24 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
   }, [completed]);
+
+  useEffect(() => {
+    if (!readerStage) return;
+    let cancelled = false;
+    setReaderLoading(true);
+    fetch(`/data/rvr1909/${String(readerBook).padStart(2, "0")}.content.json`)
+      .then((response) => response.json())
+      .then((verses: { title: string; index_reference: string; content: string }[]) => {
+        if (cancelled) return;
+        const chapters = verses.map((verse) => Number(verse.index_reference.slice(2, 5))).filter(Boolean);
+        setBookChapterCount(Math.max(...chapters, 1));
+        const chapter = String(readerBook).padStart(2, "0") + String(readerChapter).padStart(3, "0");
+        setChapterVerses(verses.filter((verse) => verse.index_reference.startsWith(chapter)).map(({ title, content }) => ({ title, content })));
+      })
+      .catch(() => setChapterVerses([]))
+      .finally(() => !cancelled && setReaderLoading(false));
+    return () => { cancelled = true; };
+  }, [readerBook, readerChapter, readerStage]);
 
   const visibleStages = useMemo(
     () => filter === "all" ? stages : stages.filter((stage) => stage.testament === filter),
@@ -112,6 +146,16 @@ export default function Home() {
     setAnswers({});
     setOpenStage(1);
   };
+
+  const openReader = (stageId: number) => {
+    const firstBook = stageBookRanges[stageId][0];
+    setReaderStage(stageId);
+    setReaderBook(firstBook);
+    setReaderChapter(1);
+  };
+
+  const readerBooks = readerStage ? stageBookRanges[readerStage].map((id) => bibleBooks[id - 1]) : [];
+  const chapterOptions = bookChapterCount;
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#f5f0e7] text-[#25211d]">
@@ -166,7 +210,7 @@ export default function Home() {
                 <span className="min-w-0 flex-1"><span className="mb-1 flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-[#a26745] uppercase">{stage.number} <span className="h-px w-5 bg-[#cdbba8]" /> {stage.testament === "Nuevo Testamento" ? "Nuevo" : "Antiguo"}</span><strong className="block font-display text-2xl leading-tight">{stage.title}</strong><span className="mt-1 block text-sm text-[#87796b]">{stage.books}</span></span>
                 <span className="mt-2 flex shrink-0 items-center gap-2">{isDone && <span className="grid size-6 place-items-center rounded-full bg-[#6f805b] text-white"><Check size={14} /></span>}<ChevronDown size={18} className={cn("text-[#9a8b7b] transition-transform", isOpen && "rotate-180")} /></span>
               </button>
-              {isOpen && <div className="border-t border-[#e6ddd2] px-5 pb-6 pt-5 sm:px-6"><p className="max-w-xl text-sm leading-6 text-[#62584f]">{stage.summary}</p><div className="mt-4 rounded-xl border-l-2 border-[#c68f61] bg-[#f4eee5] px-4 py-3 text-sm leading-6 text-[#65574b]"><span className="font-bold text-[#a26745]">Enfoque · </span>{stage.focus}</div><a href={getReadingUrl(stage.id)} target="_blank" rel="noreferrer" className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-[#d9c5ae] bg-[#fffaf2] px-4 py-3 text-sm font-bold text-[#805438] transition hover:border-[#a26745] hover:bg-[#f9eee1]"><span className="flex items-center gap-3"><BookOpen size={18} /> Leer en RVR 1960</span><ExternalLink size={16} /></a><p className="mt-2 text-[11px] text-[#948577]">Se abrirá el pasaje en un lector bíblico externo.</p><div className="mt-6 rounded-2xl bg-[#25211d] p-5 text-[#f8f2e7]"><div className="mb-4 flex items-center gap-2 text-xs font-bold tracking-[0.12em] text-[#e8b97d] uppercase"><CircleHelp size={16} /> Mini quiz</div><p className="mb-4 font-display text-xl leading-tight">{stage.quiz.question}</p><div className="grid gap-2 sm:grid-cols-2">{stage.quiz.options.map((option, optionIndex) => <button key={option} onClick={() => setAnswers((current) => ({ ...current, [stage.id]: optionIndex }))} className={cn("rounded-xl border px-3 py-3 text-left text-sm transition", !quizAnswered && "border-white/10 bg-white/5 hover:border-[#d8a66a]/70 hover:bg-white/10", quizAnswered && optionIndex === stage.quiz.answer && "border-[#91a978] bg-[#91a978]/20 text-[#dbe8d1]", quizAnswered && optionIndex === answer && optionIndex !== stage.quiz.answer && "border-[#d88968] bg-[#d88968]/20 text-[#ffd9ca]", quizAnswered && optionIndex !== answer && optionIndex !== answer && "border-white/5 bg-white/[0.02] text-white/40")}>{option}</button>)}</div>{quizAnswered && <p className={cn("mt-4 flex items-center gap-2 text-sm", quizCorrect ? "text-[#b8d6a5]" : "text-[#f1b09a]")}>{quizCorrect ? <><Trophy size={15} /> ¡Exacto! Tu comprensión va tomando forma.</> : <>Casi. Revisa el enfoque de esta etapa e inténtalo otra vez.</>}</p>}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><button onClick={() => toggleComplete(stage.id)} className={cn("flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition", isDone ? "bg-[#dce7d5] text-[#526443]" : "bg-[#a26745] text-white hover:bg-[#874e31]")}>{isDone ? <><Check size={16} /> Estudio completado</> : <><BookOpen size={16} /> Marcar como leído</>}</button><button onClick={() => setOpenStage(stage.id + 1 <= stages.length ? stage.id + 1 : 1)} className="flex items-center gap-2 text-sm font-semibold text-[#80624d] hover:text-[#a26745]">Siguiente etapa <ArrowRight size={16} /></button></div></div>}
+              {isOpen && <div className="border-t border-[#e6ddd2] px-5 pb-6 pt-5 sm:px-6"><p className="max-w-xl text-sm leading-6 text-[#62584f]">{stage.summary}</p><div className="mt-4 rounded-xl border-l-2 border-[#c68f61] bg-[#f4eee5] px-4 py-3 text-sm leading-6 text-[#65574b]"><span className="font-bold text-[#a26745]">Enfoque · </span>{stage.focus}</div><div className="mt-5 grid gap-2 sm:grid-cols-2"><button onClick={() => openReader(stage.id)} className="flex items-center justify-between gap-3 rounded-2xl bg-[#a26745] px-4 py-3 text-left text-sm font-bold text-white transition hover:bg-[#874e31]"><span className="flex items-center gap-3"><BookOpen size={18} /> Leer aquí · RVR 1909</span><ArrowRight size={16} /></button><a href={getReadingUrl(stage.id)} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-2xl border border-[#d9c5ae] bg-[#fffaf2] px-4 py-3 text-left text-sm font-bold text-[#805438] transition hover:border-[#a26745] hover:bg-[#f9eee1]"><span className="flex items-center gap-3"><BookOpen size={18} /> Comparar con RVR 1960</span><ExternalLink size={16} /></a></div><p className="mt-2 text-[11px] text-[#948577]">La RVR 1909 está integrada en la app; la RVR 1960 se abre externamente.</p>{readerStage === stage.id && <div className="mt-5 overflow-hidden rounded-2xl border border-[#d7c8b6] bg-[#fffaf3]"><div className="flex flex-col gap-3 border-b border-[#e6ddd2] bg-[#f2e8da] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-bold tracking-[0.16em] text-[#a26745] uppercase">Lectura integrada</p><h4 className="font-display text-2xl">RVR 1909</h4></div><div className="flex flex-wrap gap-2"><select aria-label="Libro bíblico" value={readerBook} onChange={(event) => { setReaderBook(Number(event.target.value)); setReaderChapter(1); }} className="rounded-lg border border-[#d2c0aa] bg-[#fffaf3] px-3 py-2 text-xs font-semibold text-[#604d3c]">{readerBooks.map((book) => <option key={book.id} value={book.id}>{book.short} · {book.name}</option>)}</select><select aria-label="Capítulo" value={readerChapter} onChange={(event) => setReaderChapter(Number(event.target.value))} className="rounded-lg border border-[#d2c0aa] bg-[#fffaf3] px-3 py-2 text-xs font-semibold text-[#604d3c]">{Array.from({ length: chapterOptions }, (_, index) => <option key={index + 1} value={index + 1}>Cap. {index + 1}</option>)}</select></div></div><div className="max-h-[28rem] overflow-y-auto px-5 py-5 sm:px-7">{readerLoading ? <p className="py-10 text-center text-sm text-[#88786a]">Cargando el capítulo…</p> : chapterVerses.length ? <div className="bible-copy">{chapterVerses.map((verse) => <div key={verse.title} dangerouslySetInnerHTML={{ __html: verse.content }} />)}</div> : <p className="py-10 text-center text-sm text-[#88786a]">No se encontró el capítulo seleccionado.</p>}</div><div className="border-t border-[#e6ddd2] px-5 py-3 text-[11px] text-[#948577]">Texto de dominio público · Reina-Valera 1909</div></div>}<div className="mt-6 rounded-2xl bg-[#25211d] p-5 text-[#f8f2e7]"><div className="mb-4 flex items-center gap-2 text-xs font-bold tracking-[0.12em] text-[#e8b97d] uppercase"><CircleHelp size={16} /> Mini quiz</div><p className="mb-4 font-display text-xl leading-tight">{stage.quiz.question}</p><div className="grid gap-2 sm:grid-cols-2">{stage.quiz.options.map((option, optionIndex) => <button key={option} onClick={() => setAnswers((current) => ({ ...current, [stage.id]: optionIndex }))} className={cn("rounded-xl border px-3 py-3 text-left text-sm transition", !quizAnswered && "border-white/10 bg-white/5 hover:border-[#d8a66a]/70 hover:bg-white/10", quizAnswered && optionIndex === stage.quiz.answer && "border-[#91a978] bg-[#91a978]/20 text-[#dbe8d1]", quizAnswered && optionIndex === answer && optionIndex !== stage.quiz.answer && "border-[#d88968] bg-[#d88968]/20 text-[#ffd9ca]", quizAnswered && optionIndex !== answer && optionIndex !== answer && "border-white/5 bg-white/[0.02] text-white/40")}>{option}</button>)}</div>{quizAnswered && <p className={cn("mt-4 flex items-center gap-2 text-sm", quizCorrect ? "text-[#b8d6a5]" : "text-[#f1b09a]")}>{quizCorrect ? <><Trophy size={15} /> ¡Exacto! Tu comprensión va tomando forma.</> : <>Casi. Revisa el enfoque de esta etapa e inténtalo otra vez.</>}</p>}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><button onClick={() => toggleComplete(stage.id)} className={cn("flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition", isDone ? "bg-[#dce7d5] text-[#526443]" : "bg-[#a26745] text-white hover:bg-[#874e31]")}>{isDone ? <><Check size={16} /> Estudio completado</> : <><BookOpen size={16} /> Marcar como leído</>}</button><button onClick={() => setOpenStage(stage.id + 1 <= stages.length ? stage.id + 1 : 1)} className="flex items-center gap-2 text-sm font-semibold text-[#80624d] hover:text-[#a26745]">Siguiente etapa <ArrowRight size={16} /></button></div></div>}
             </article>;
           })}
         </div>
