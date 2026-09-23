@@ -117,7 +117,7 @@ export default function Home() {
     if (!readerStage) return;
     let cancelled = false;
     setReaderLoading(true);
-    fetch(`/data/rvr1909/${String(readerBook).padStart(2, "0")}.content.json`)
+    fetch(`${import.meta.env.BASE_URL}data/rvr1909/${String(readerBook).padStart(2, "0")}.content.json`)
       .then((response) => response.json())
       .then((verses: { title: string; index_reference: string; content: string }[]) => {
         if (cancelled) return;
