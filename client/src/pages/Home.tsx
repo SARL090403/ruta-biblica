@@ -65,6 +65,12 @@ const stages: Stage[] = [
 ];
 
 const STORAGE_KEY = "ruta-biblica-progress-v1";
+const CHAPTER_STORAGE_KEY = "ruta-biblica-chapters-v2";
+const recallStopWords = new Set("a al algo ante antes como con contra cual de del desde donde dos el ella ellas ellos en entre era es esta este esto fue ha hay hasta la las le les lo los más me mi muy no nos o para pero por que se sin sobre su sus también te tu un una uno y ya yo dios señor".split(" "));
+
+function normalizeForRecall(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 
 const readingRefs: Record<number, string> = {
   1: "Genesis 1-11",
@@ -109,6 +115,7 @@ export default function Home() {
   const [revealed, setRevealed] = useState(false);
   const [chapterQuizAnswer, setChapterQuizAnswer] = useState<number | null>(null);
   const [connectionAnswer, setConnectionAnswer] = useState<number | null>(null);
+  const [recallFeedback, setRecallFeedback] = useState<string | null>(null);
 
   const chapterKey = `${readerBook}-${readerChapter}`;
   const currentChapterProgress = chapterProgress[chapterKey];
@@ -122,7 +129,7 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) setCompleted(JSON.parse(saved));
-    const savedChapters = localStorage.getItem("ruta-biblica-chapters-v1");
+    const savedChapters = localStorage.getItem(CHAPTER_STORAGE_KEY);
     if (savedChapters) setChapterProgress(JSON.parse(savedChapters));
   }, []);
 
@@ -131,7 +138,7 @@ export default function Home() {
   }, [completed]);
 
   useEffect(() => {
-    localStorage.setItem("ruta-biblica-chapters-v1", JSON.stringify(chapterProgress));
+    localStorage.setItem(CHAPTER_STORAGE_KEY, JSON.stringify(chapterProgress));
   }, [chapterProgress]);
 
   useEffect(() => {
@@ -186,8 +193,16 @@ export default function Home() {
   };
 
   const markChapterComplete = () => {
-    const score = Number(Boolean(recall.trim())) + Number(chapterQuizAnswer === 0) + Number(connectionAnswer === currentStage.quiz.answer);
-    if (score < 2) return;
+    const score = Number(recallValid) + Number(chapterQuizAnswer === 0) + Number(connectionAnswer === currentStage.quiz.answer);
+    if (!recallValid) {
+      setRecallFeedback(recall.trim().length < 40 ? "Escribe al menos 40 caracteres con tus propias palabras." : `Tu resumen todavía no conecta con suficientes ideas del capítulo. Intenta incluir ${chapterKeywords.slice(0, 4).join(", ")}.`);
+      return;
+    }
+    if (score < 2) {
+      setRecallFeedback("Aún falta una señal de comprensión: revisa la autoevaluación y la conexión con la etapa.");
+      return;
+    }
+    setRecallFeedback(`Bien: tu respuesta recuperó ${recallMatches.length} palabras clave del capítulo.`);
     setChapterProgress((current) => ({ ...current, [chapterKey]: { read: true, score } }));
   };
 
@@ -199,6 +214,22 @@ export default function Home() {
     setChapterQuizAnswer(null);
     setConnectionAnswer(null);
   };
+
+  const chapterKeywords = useMemo(() => {
+    const text = normalizeForRecall(chapterVerses.map((verse) => verse.content.replace(/<[^>]+>/g, " ")).join(" "));
+    const words = text.match(/[a-zñ]{5,}/g) ?? [];
+    const counts = words.reduce<Record<string, number>>((result, word) => {
+      if (!recallStopWords.has(word)) result[word] = (result[word] ?? 0) + 1;
+      return result;
+    }, {});
+    return Object.entries(counts).sort(([, a], [, b]) => b - a).slice(0, 10).map(([word]) => word);
+  }, [chapterVerses]);
+
+  const recallMatches = useMemo(() => {
+    const answerWords = new Set(normalizeForRecall(recall).match(/[a-zñ]{5,}/g) ?? []);
+    return chapterKeywords.filter((keyword) => answerWords.has(keyword));
+  }, [chapterKeywords, recall]);
+  const recallValid = recall.trim().length >= 40 && recallMatches.length >= 2;
 
   const readerBooks = readerStage ? stageBookRanges[readerStage].map((id) => bibleBooks[id - 1]) : [];
   const chapterOptions = bookChapterCount;
@@ -255,9 +286,9 @@ export default function Home() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e0d4c5] pb-4"><div><p className="text-[10px] font-bold tracking-[0.16em] text-[#a26745] uppercase">Sesión actual</p><h4 className="font-display text-2xl">{bibleBooks[readerBook - 1]?.name} · capítulo {readerChapter}</h4></div><button onClick={() => openReader(readerStage ?? 1)} className="rounded-full border border-[#d7cabb] px-3 py-2 text-xs font-bold text-[#805438] transition hover:border-[#a26745]">Cambiar libro</button></div>
               <div className="mt-5 flex items-center justify-between text-xs"><span className="font-semibold text-[#776b5f]">Lectura del capítulo</span><span className="rounded-full bg-[#e9e0d4] px-3 py-1 font-bold text-[#805438]">{currentChapterProgress?.read ? "Completado" : "Pendiente"}</span></div>
               <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-[#e3d8ca] bg-[#fffaf3] p-4"><div className="bible-copy">{readerLoading ? <p>Cargando capítulo…</p> : chapterVerses.length ? chapterVerses.map((verse) => <div key={verse.title} dangerouslySetInnerHTML={{ __html: verse.content }} />) : <p>Abre una etapa para comenzar la lectura continua.</p>}</div></div>
-              <div className="mt-5 grid gap-4"><label className="text-sm font-bold">1. Recuperación libre <span className="font-normal text-[#8d7d6d]">· sin mirar el texto</span><textarea value={recall} onChange={(event) => setRecall(event.target.value)} placeholder="Escribe 2–3 frases: ¿qué ocurrió, quién participó y qué idea conecta con la historia?" className="mt-2 min-h-20 w-full resize-y rounded-xl border border-[#d7cabb] bg-white px-3 py-3 text-sm font-normal outline-none transition placeholder:text-[#a99d8d] focus:border-[#a26745]" /></label><div><p className="text-sm font-bold">2. Comprensión</p><div className="mt-2 grid gap-2">{chapterQuizOptions.map((option, index) => <button key={option} onClick={() => setChapterQuizAnswer(index)} className={cn("rounded-xl border px-3 py-2.5 text-left text-sm transition", chapterQuizAnswer === index ? "border-[#a26745] bg-[#f3e2d2] text-[#70472e]" : "border-[#e2d7c9] hover:border-[#c69a72]")}>{option}</button>)}</div></div><div><p className="text-sm font-bold">3. Conexión con la etapa</p><p className="mt-1 text-xs text-[#88786a]">¿Qué enfoque de esta etapa ilumina lo que acabas de leer?</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{currentStage.quiz.options.map((option, index) => <button key={option} onClick={() => setConnectionAnswer(index)} className={cn("rounded-xl border px-3 py-2.5 text-left text-sm transition", connectionAnswer === index ? "border-[#a26745] bg-[#f3e2d2] text-[#70472e]" : "border-[#e2d7c9] hover:border-[#c69a72]")}>{option}</button>)}</div></div></div>
+              <div className="mt-5 grid gap-4"><label className="text-sm font-bold">1. Recuperación libre <span className="font-normal text-[#8d7d6d]">· sin mirar el texto</span><textarea value={recall} onChange={(event) => { setRecall(event.target.value); setRecallFeedback(null); }} placeholder="Escribe 2–3 frases: ¿qué ocurrió, quién participó y qué idea conecta con la historia?" className="mt-2 min-h-20 w-full resize-y rounded-xl border border-[#d7cabb] bg-white px-3 py-3 text-sm font-normal outline-none transition placeholder:text-[#a99d8d] focus:border-[#a26745]" /></label>{recall.length > 0 && <p className={cn("-mt-2 text-xs", recallValid ? "text-[#6f805b]" : "text-[#a26745]")}>{recallValid ? `✓ Resumen válido · ${recallMatches.length} palabras clave detectadas` : `Faltan ${Math.max(0, 40 - recall.trim().length)} caracteres o ${Math.max(0, 2 - recallMatches.length)} palabras clave del capítulo`}</p>}<div><p className="text-sm font-bold">2. Comprensión</p><div className="mt-2 grid gap-2">{chapterQuizOptions.map((option, index) => <button key={option} onClick={() => setChapterQuizAnswer(index)} className={cn("rounded-xl border px-3 py-2.5 text-left text-sm transition", chapterQuizAnswer === index ? "border-[#a26745] bg-[#f3e2d2] text-[#70472e]" : "border-[#e2d7c9] hover:border-[#c69a72]")}>{option}</button>)}</div></div><div><p className="text-sm font-bold">3. Conexión con la etapa</p><p className="mt-1 text-xs text-[#88786a]">¿Qué enfoque de esta etapa ilumina lo que acabas de leer?</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{currentStage.quiz.options.map((option, index) => <button key={option} onClick={() => setConnectionAnswer(index)} className={cn("rounded-xl border px-3 py-2.5 text-left text-sm transition", connectionAnswer === index ? "border-[#a26745] bg-[#f3e2d2] text-[#70472e]" : "border-[#e2d7c9] hover:border-[#c69a72]")}>{option}</button>)}</div></div></div>
               {revealed && <div className="mt-4 rounded-xl border-l-2 border-[#6f805b] bg-[#e5eddc] px-4 py-3 text-sm leading-6 text-[#526443]"><strong>Guía de autoevaluación:</strong> tu respuesta debe mencionar un hecho concreto del capítulo, su significado y una relación con {currentStage.title.toLowerCase()}. Si no puedes, vuelve al texto y prueba otra vez.</div>}
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><button onClick={() => setRevealed(true)} className="text-sm font-bold text-[#805438] hover:text-[#a26745]">Mostrar guía</button><div className="flex gap-2"><button onClick={markChapterComplete} disabled={!recall.trim() || chapterQuizAnswer === null || connectionAnswer === null} className="rounded-full bg-[#a26745] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#874e31] disabled:cursor-not-allowed disabled:opacity-40">Comprobar capítulo</button><button onClick={nextChapter} disabled={!currentChapterProgress?.read || readerChapter >= bookChapterCount} className="flex items-center gap-2 rounded-full border border-[#cdbba8] px-4 py-2.5 text-sm font-bold text-[#805438] transition hover:border-[#a26745] disabled:cursor-not-allowed disabled:opacity-40">Siguiente <ArrowRight size={15} /></button></div></div>
+              {recallFeedback && <p className={cn("mt-4 rounded-xl px-4 py-3 text-sm", recallFeedback.startsWith("Bien") ? "bg-[#e5eddc] text-[#526443]" : "bg-[#f5e1d5] text-[#805438]")}>{recallFeedback}</p>}<div className="mt-5 flex flex-wrap items-center justify-between gap-3"><button onClick={() => setRevealed(true)} className="text-sm font-bold text-[#805438] hover:text-[#a26745]">Mostrar guía</button><div className="flex gap-2"><button onClick={markChapterComplete} disabled={chapterQuizAnswer === null || connectionAnswer === null} className="rounded-full bg-[#a26745] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#874e31] disabled:cursor-not-allowed disabled:opacity-40">Comprobar capítulo</button><button onClick={nextChapter} disabled={!currentChapterProgress?.read || readerChapter >= bookChapterCount} className="flex items-center gap-2 rounded-full border border-[#cdbba8] px-4 py-2.5 text-sm font-bold text-[#805438] transition hover:border-[#a26745] disabled:cursor-not-allowed disabled:opacity-40">Siguiente <ArrowRight size={15} /></button></div></div>
               {currentChapterProgress?.read && <p className="mt-3 text-right text-xs font-semibold text-[#6f805b]">✓ Dominio mínimo alcanzado · {currentChapterProgress.score}/3 señales de comprensión</p>}
             </div>
           </div>
