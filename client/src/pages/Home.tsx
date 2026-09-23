@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
+  BrainCircuit,
   Check,
   ChevronDown,
   CircleHelp,
@@ -97,21 +98,41 @@ export default function Home() {
   const [openStage, setOpenStage] = useState(1);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [filter, setFilter] = useState<"all" | "Antiguo Testamento" | "Nuevo Testamento">("all");
-  const [readerStage, setReaderStage] = useState<number | null>(null);
+  const [readerStage, setReaderStage] = useState<number | null>(1);
   const [readerBook, setReaderBook] = useState(1);
   const [readerChapter, setReaderChapter] = useState(1);
   const [chapterVerses, setChapterVerses] = useState<{ title: string; content: string }[]>([]);
   const [readerLoading, setReaderLoading] = useState(false);
   const [bookChapterCount, setBookChapterCount] = useState(1);
+  const [chapterProgress, setChapterProgress] = useState<Record<string, { read: boolean; score: number }>>({});
+  const [recall, setRecall] = useState("");
+  const [revealed, setRevealed] = useState(false);
+  const [chapterQuizAnswer, setChapterQuizAnswer] = useState<number | null>(null);
+  const [connectionAnswer, setConnectionAnswer] = useState<number | null>(null);
+
+  const chapterKey = `${readerBook}-${readerChapter}`;
+  const currentChapterProgress = chapterProgress[chapterKey];
+  const currentStage = stages.find((stage) => stage.id === (readerStage ?? 1)) ?? stages[0];
+  const chapterQuizOptions = [
+    "Puedo explicar con mis palabras qué sucede y por qué importa.",
+    "Solo reconozco el título, pero no recuerdo el contenido.",
+    "Necesito volver a leerlo antes de poder explicarlo.",
+  ];
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) setCompleted(JSON.parse(saved));
+    const savedChapters = localStorage.getItem("ruta-biblica-chapters-v1");
+    if (savedChapters) setChapterProgress(JSON.parse(savedChapters));
   }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
   }, [completed]);
+
+  useEffect(() => {
+    localStorage.setItem("ruta-biblica-chapters-v1", JSON.stringify(chapterProgress));
+  }, [chapterProgress]);
 
   useEffect(() => {
     if (!readerStage) return;
@@ -135,7 +156,8 @@ export default function Home() {
     () => filter === "all" ? stages : stages.filter((stage) => stage.testament === filter),
     [filter],
   );
-  const progress = Math.round((completed.length / stages.length) * 100);
+  const masteredChapters = Object.values(chapterProgress).filter((item) => item.read).length;
+  const progress = Math.round((masteredChapters / 1189) * 100);
 
   const toggleComplete = (id: number) => {
     setCompleted((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
@@ -144,6 +166,11 @@ export default function Home() {
   const resetProgress = () => {
     setCompleted([]);
     setAnswers({});
+    setChapterProgress({});
+    setRecall("");
+    setRevealed(false);
+    setChapterQuizAnswer(null);
+    setConnectionAnswer(null);
     setOpenStage(1);
   };
 
@@ -152,6 +179,25 @@ export default function Home() {
     setReaderStage(stageId);
     setReaderBook(firstBook);
     setReaderChapter(1);
+    setRecall("");
+    setRevealed(false);
+    setChapterQuizAnswer(null);
+    setConnectionAnswer(null);
+  };
+
+  const markChapterComplete = () => {
+    const score = Number(Boolean(recall.trim())) + Number(chapterQuizAnswer === 0) + Number(connectionAnswer === currentStage.quiz.answer);
+    if (score < 2) return;
+    setChapterProgress((current) => ({ ...current, [chapterKey]: { read: true, score } }));
+  };
+
+  const nextChapter = () => {
+    if (!currentChapterProgress?.read || readerChapter >= bookChapterCount) return;
+    setReaderChapter((chapter) => chapter + 1);
+    setRecall("");
+    setRevealed(false);
+    setChapterQuizAnswer(null);
+    setConnectionAnswer(null);
   };
 
   const readerBooks = readerStage ? stageBookRanges[readerStage].map((id) => bibleBooks[id - 1]) : [];
@@ -172,13 +218,13 @@ export default function Home() {
           <div className="mt-16 max-w-3xl animate-rise">
             <p className="mb-5 flex items-center gap-2 text-xs font-bold tracking-[0.24em] text-[#d8a66a] uppercase"><Sparkles size={15} /> La gran historia</p>
             <h1 className="font-display text-5xl leading-[0.98] tracking-[-0.04em] sm:text-7xl">Lee la Biblia.<br /><em className="text-[#d8a66a]">Entiende la historia.</em></h1>
-            <p className="mt-7 max-w-xl text-base leading-7 text-[#d8d0c4] sm:text-lg">Una ruta interactiva por los 66 libros: descubre cada etapa, marca tu avance y comprueba lo aprendido con un mini quiz.</p>
+            <p className="mt-7 max-w-xl text-base leading-7 text-[#d8d0c4] sm:text-lg">Lee de forma continua, capítulo por capítulo: recupera lo aprendido, conecta las ideas y avanza solo cuando el conocimiento se queda contigo.</p>
           </div>
           <div className="mt-12 grid max-w-3xl gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
               <div className="mb-3 flex items-end justify-between text-sm"><span className="text-[#cfc2b0]">Tu recorrido</span><strong className="font-display text-3xl text-[#f8f2e7]">{progress}%</strong></div>
               <Progress value={progress} className="h-2 bg-white/10 [&>div]:bg-[#d8a66a]" />
-              <p className="mt-3 text-xs text-[#a99d8d]">{completed.length} de {stages.length} estudios completados</p>
+              <p className="mt-3 text-xs text-[#a99d8d]">{masteredChapters} capítulos dominados · lectura continua</p>
             </div>
             <div className="flex gap-2 text-center">
               <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3"><div className="font-display text-2xl">66</div><div className="text-[10px] tracking-wider text-[#a99d8d] uppercase">libros</div></div>
@@ -196,6 +242,26 @@ export default function Home() {
             {(["all", "Antiguo Testamento", "Nuevo Testamento"] as const).map((item) => <button key={item} onClick={() => setFilter(item)} className={cn("rounded-full border px-4 py-2 text-xs font-semibold transition", filter === item ? "border-[#25211d] bg-[#25211d] text-white" : "border-[#d7cabb] bg-[#fbf8f2] text-[#776b5f] hover:border-[#a26745]")}>{item === "all" ? "Toda la ruta" : item}</button>)}
           </div>
         </div>
+
+        <section className="mb-12 overflow-hidden rounded-[2rem] border border-[#3d3934] bg-[#2b2824] text-[#f8f2e7] shadow-[0_22px_60px_rgba(42,31,22,0.16)]">
+          <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[.8fr_1.2fr] lg:p-10">
+            <div>
+              <p className="mb-3 flex items-center gap-2 text-xs font-bold tracking-[0.18em] text-[#d8a66a] uppercase"><BrainCircuit size={16} /> Laboratorio de memoria</p>
+              <h3 className="font-display text-3xl leading-tight sm:text-4xl">Un capítulo a la vez.<br /><em className="text-[#d8a66a]">Sin saltos.</em></h3>
+              <p className="mt-5 max-w-md text-sm leading-6 text-[#cfc2b0]">Lee el capítulo, cierra el texto y recupera lo aprendido. La siguiente lectura se desbloquea cuando demuestras comprensión, no solo cuando llegas al final.</p>
+              <div className="mt-7 grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded-xl border border-white/10 bg-white/5 px-2 py-3"><div className="font-display text-xl text-[#e8b97d]">1</div><span className="text-[#a99d8d]">leer</span></div><div className="rounded-xl border border-white/10 bg-white/5 px-2 py-3"><div className="font-display text-xl text-[#e8b97d]">2</div><span className="text-[#a99d8d]">recordar</span></div><div className="rounded-xl border border-white/10 bg-white/5 px-2 py-3"><div className="font-display text-xl text-[#e8b97d]">3</div><span className="text-[#a99d8d]">conectar</span></div></div>
+            </div>
+            <div className="rounded-[1.5rem] bg-[#f8f2e7] p-5 text-[#25211d] sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e0d4c5] pb-4"><div><p className="text-[10px] font-bold tracking-[0.16em] text-[#a26745] uppercase">Sesión actual</p><h4 className="font-display text-2xl">{bibleBooks[readerBook - 1]?.name} · capítulo {readerChapter}</h4></div><button onClick={() => openReader(readerStage ?? 1)} className="rounded-full border border-[#d7cabb] px-3 py-2 text-xs font-bold text-[#805438] transition hover:border-[#a26745]">Cambiar libro</button></div>
+              <div className="mt-5 flex items-center justify-between text-xs"><span className="font-semibold text-[#776b5f]">Lectura del capítulo</span><span className="rounded-full bg-[#e9e0d4] px-3 py-1 font-bold text-[#805438]">{currentChapterProgress?.read ? "Completado" : "Pendiente"}</span></div>
+              <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-[#e3d8ca] bg-[#fffaf3] p-4"><div className="bible-copy">{readerLoading ? <p>Cargando capítulo…</p> : chapterVerses.length ? chapterVerses.map((verse) => <div key={verse.title} dangerouslySetInnerHTML={{ __html: verse.content }} />) : <p>Abre una etapa para comenzar la lectura continua.</p>}</div></div>
+              <div className="mt-5 grid gap-4"><label className="text-sm font-bold">1. Recuperación libre <span className="font-normal text-[#8d7d6d]">· sin mirar el texto</span><textarea value={recall} onChange={(event) => setRecall(event.target.value)} placeholder="Escribe 2–3 frases: ¿qué ocurrió, quién participó y qué idea conecta con la historia?" className="mt-2 min-h-20 w-full resize-y rounded-xl border border-[#d7cabb] bg-white px-3 py-3 text-sm font-normal outline-none transition placeholder:text-[#a99d8d] focus:border-[#a26745]" /></label><div><p className="text-sm font-bold">2. Comprensión</p><div className="mt-2 grid gap-2">{chapterQuizOptions.map((option, index) => <button key={option} onClick={() => setChapterQuizAnswer(index)} className={cn("rounded-xl border px-3 py-2.5 text-left text-sm transition", chapterQuizAnswer === index ? "border-[#a26745] bg-[#f3e2d2] text-[#70472e]" : "border-[#e2d7c9] hover:border-[#c69a72]")}>{option}</button>)}</div></div><div><p className="text-sm font-bold">3. Conexión con la etapa</p><p className="mt-1 text-xs text-[#88786a]">¿Qué enfoque de esta etapa ilumina lo que acabas de leer?</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{currentStage.quiz.options.map((option, index) => <button key={option} onClick={() => setConnectionAnswer(index)} className={cn("rounded-xl border px-3 py-2.5 text-left text-sm transition", connectionAnswer === index ? "border-[#a26745] bg-[#f3e2d2] text-[#70472e]" : "border-[#e2d7c9] hover:border-[#c69a72]")}>{option}</button>)}</div></div></div>
+              {revealed && <div className="mt-4 rounded-xl border-l-2 border-[#6f805b] bg-[#e5eddc] px-4 py-3 text-sm leading-6 text-[#526443]"><strong>Guía de autoevaluación:</strong> tu respuesta debe mencionar un hecho concreto del capítulo, su significado y una relación con {currentStage.title.toLowerCase()}. Si no puedes, vuelve al texto y prueba otra vez.</div>}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><button onClick={() => setRevealed(true)} className="text-sm font-bold text-[#805438] hover:text-[#a26745]">Mostrar guía</button><div className="flex gap-2"><button onClick={markChapterComplete} disabled={!recall.trim() || chapterQuizAnswer === null || connectionAnswer === null} className="rounded-full bg-[#a26745] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#874e31] disabled:cursor-not-allowed disabled:opacity-40">Comprobar capítulo</button><button onClick={nextChapter} disabled={!currentChapterProgress?.read || readerChapter >= bookChapterCount} className="flex items-center gap-2 rounded-full border border-[#cdbba8] px-4 py-2.5 text-sm font-bold text-[#805438] transition hover:border-[#a26745] disabled:cursor-not-allowed disabled:opacity-40">Siguiente <ArrowRight size={15} /></button></div></div>
+              {currentChapterProgress?.read && <p className="mt-3 text-right text-xs font-semibold text-[#6f805b]">✓ Dominio mínimo alcanzado · {currentChapterProgress.score}/3 señales de comprensión</p>}
+            </div>
+          </div>
+        </section>
 
         <div className="grid gap-5 lg:grid-cols-2">
           {visibleStages.map((stage, index) => {
