@@ -60,6 +60,38 @@
 }
 .animate-rise { animation: rise .7s cubic-bezier(.23,1,.32,1) both; }
 
+@keyframes bounce-in {
+  0% { opacity: 0; transform: translateY(8px) scale(.96); }
+  70% { transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes chapter-celebration {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(216,166,106,0); }
+  45% { transform: scale(1.018) rotate(-.4deg); box-shadow: 0 16px 42px rgba(216,166,106,.28); }
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(216,166,106,0); }
+}
+.animate-bounce-in { animation: bounce-in .45s cubic-bezier(.23,1,.32,1) both; }
+.chapter-celebration { animation: chapter-celebration .7s cubic-bezier(.23,1,.32,1) both; }
+.adventure-mode .adventure-toggle { background: rgba(216,166,106,.16); }
+.adventure-mode .bible-copy { font-size: 1.12rem; line-height: 2; }
+.adventure-mode button:not(.adventure-toggle):hover { transform: translateY(-2px); }
+.adventure-mode .rounded-\[2rem\] { background-image: radial-gradient(circle at 12% 18%, rgba(216,166,106,.12) 0 3px, transparent 4px), radial-gradient(circle at 88% 74%, rgba(111,128,91,.15) 0 4px, transparent 5px); }
+.chapter-map-compass { color: #a26745; font-size: 1.35rem; animation: compass-float 2.4s ease-in-out infinite; }
+.chapter-map-center { position: absolute; left: 50%; top: 50%; z-index: 2; display: grid; width: 4.2rem; height: 4.2rem; transform: translate(-50%, -50%); place-items: center; align-content: center; border-radius: 999px; background: #25211d; color: #f8f2e7; box-shadow: 0 8px 18px rgba(37,33,29,.2); }
+.chapter-map-center strong { font-family: var(--font-display); font-size: 1.55rem; line-height: 1; }
+.chapter-node { position: absolute; z-index: 2; max-width: 8.5rem; border: 1px solid #d4bda1; border-radius: 999px; background: rgba(255,250,243,.92); padding: .35rem .65rem; color: #805438; font-size: .72rem; font-weight: 700; text-align: center; box-shadow: 0 4px 10px rgba(101,71,45,.08); animation: node-in .45s cubic-bezier(.23,1,.32,1) both; }
+.chapter-node-1 { left: 4%; top: 16%; animation-delay: .05s; }
+.chapter-node-2 { right: 4%; top: 16%; animation-delay: .1s; }
+.chapter-node-3 { left: 2%; bottom: 14%; animation-delay: .15s; }
+.chapter-node-4 { right: 2%; bottom: 14%; animation-delay: .2s; }
+.chapter-node-5 { left: 31%; top: 5%; animation-delay: .25s; }
+.chapter-node-6 { right: 30%; bottom: 4%; animation-delay: .3s; }
+.chapter-map-line { position: absolute; left: 50%; top: 50%; width: 42%; height: 1px; background: #d4bda1; transform-origin: left center; opacity: .8; }
+.chapter-map-line-one { transform: rotate(22deg); }
+.chapter-map-line-two { transform: rotate(-22deg); }
+@keyframes compass-float { 0%, 100% { transform: rotate(-5deg) translateY(0); } 50% { transform: rotate(8deg) translateY(-3px); } }
+@keyframes node-in { from { opacity: 0; transform: scale(.92) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
