@@ -89,6 +89,9 @@
 .chapter-map-line { position: absolute; left: 50%; top: 50%; width: 42%; height: 1px; background: #d4bda1; transform-origin: left center; opacity: .8; }
 .chapter-map-line-one { transform: rotate(22deg); }
 .chapter-map-line-two { transform: rotate(-22deg); }
+.chapter-scene { aspect-ratio: 16 / 9; transition: transform .35s cubic-bezier(.23,1,.32,1), filter .35s ease; }
+.chapter-scene-placeholder { aspect-ratio: 16 / 9; background: radial-gradient(circle at 50% 25%, #fffaf3 0 12%, transparent 13%), linear-gradient(135deg, #ead7c0, #f8eee2 52%, #dce7d5); }
+.chapter-illustration:hover .chapter-scene { transform: scale(1.02); filter: saturate(1.08); }
 @keyframes compass-float { 0%, 100% { transform: rotate(-5deg) translateY(0); } 50% { transform: rotate(8deg) translateY(-3px); } }
 @keyframes node-in { from { opacity: 0; transform: scale(.92) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
