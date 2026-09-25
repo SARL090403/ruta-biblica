@@ -67,6 +67,31 @@ const stages: Stage[] = [
 const STORAGE_KEY = "ruta-biblica-progress-v1";
 const CHAPTER_STORAGE_KEY = "ruta-biblica-chapters-v2";
 const recallStopWords = new Set("a al algo ante antes como con contra cual de del desde donde dos el ella ellas ellos en entre era es esta este esto fue ha hay hasta la las le les lo los más me mi muy no nos o para pero por que se sin sobre su sus también te tu un una uno y ya yo dios señor".split(" "));
+const conceptLexicon = [
+  { label: "creación", terms: ["creo", "crio", "crear", "creacion"] },
+  { label: "luz", terms: ["luz", "lumbrera", "lumbreras"] },
+  { label: "cielos", terms: ["cielo", "cielos", "expansion"] },
+  { label: "tierra", terms: ["tierra", "seca", "terreno"] },
+  { label: "aguas", terms: ["agua", "aguas", "mares", "mar"] },
+  { label: "vida", terms: ["vida", "viviente", "vivientes", "seres"] },
+  { label: "humanidad", terms: ["hombre", "mujer", "imagen", "semejanza"] },
+  { label: "bendición", terms: ["bendijo", "bendecir", "bendicion"] },
+  { label: "pacto", terms: ["pacto", "alianza", "promesa"] },
+  { label: "familia", terms: ["familia", "padre", "madre", "hijo", "hijos"] },
+  { label: "pecado", terms: ["pecado", "pecar", "iniquidad", "culpa"] },
+  { label: "reino", terms: ["reino", "rey", "reyes", "trono"] },
+  { label: "liberación", terms: ["libertad", "liberar", "libertado", "salvo", "salvacion"] },
+  { label: "templo", terms: ["templo", "altar", "santuario"] },
+  { label: "profeta", terms: ["profeta", "profetas", "profetizo"] },
+  { label: "esperanza", terms: ["esperanza", "esperar", "consuelo", "restauracion"] },
+  { label: "oración", terms: ["oracion", "orar", "suplicar", "clamor"] },
+  { label: "sabiduría", terms: ["sabiduria", "sabio", "entendimiento", "conocimiento"] },
+  { label: "Jesús", terms: ["jesus", "cristo", "mesias"] },
+  { label: "espíritu", terms: ["espiritu", "pentecostes"] },
+  { label: "iglesia", terms: ["iglesia", "discipulos", "apostoles"] },
+  { label: "fe", terms: ["fe", "creer", "creyente"] },
+  { label: "amor", terms: ["amor", "amar", "amado"] },
+];
 
 function normalizeForRecall(value: string) {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -221,12 +246,14 @@ export default function Home() {
 
   const chapterKeywords = useMemo(() => {
     const text = normalizeForRecall(chapterVerses.map((verse) => verse.content.replace(/<[^>]+>/g, " ")).join(" "));
+    const semanticMatches = conceptLexicon.filter((concept) => concept.terms.some((term) => new RegExp(`(^|[^a-zñ])${term}([^a-zñ]|$)`).test(text))).map((concept) => concept.label);
     const words = text.match(/[a-zñ]{5,}/g) ?? [];
     const counts = words.reduce<Record<string, number>>((result, word) => {
       if (!recallStopWords.has(word)) result[word] = (result[word] ?? 0) + 1;
       return result;
     }, {});
-    return Object.entries(counts).sort(([, a], [, b]) => b - a).slice(0, 10).map(([word]) => word);
+    const fallback = Object.entries(counts).sort(([, a], [, b]) => b - a).map(([word]) => word).filter((word) => !["segun", "tarde", "hizo", "dijo", "fuere", "aqui", "alli", "cosa", "toda", "todo"].includes(word));
+    return [...semanticMatches, ...fallback.filter((word) => !semanticMatches.includes(word))].slice(0, 10);
   }, [chapterVerses]);
 
   const recallMatches = useMemo(() => {
